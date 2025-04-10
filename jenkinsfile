@@ -23,12 +23,14 @@ pipeline {
                 chmod 600 ~/.kube/config
                 
                 # Verify config
+		echo "=== Current kubectl configuration ==="
                 kubectl config view --raw
                 kubectl get nodes
             '''
             
             // Your deployment commands...
             sh 'kubectl apply -f k8s/deployment.yaml'
+	    sh 'kubectl apply -f k8s/service.yaml'
         }
     }
 }    }
