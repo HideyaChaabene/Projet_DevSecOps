@@ -18,6 +18,7 @@ pipeline {
         stage('Unit Test') {
             steps {
                 script {
+		    sh 'pkill -f "node.*5000" || true'
                     sh('npm test')
                 }
             }
