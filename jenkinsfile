@@ -66,32 +66,28 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
-            steps {
-                script {
-                    // Verify kubectl is configured
-                    sh 'kubectl cluster-info'
-                    
-                    // Apply configurations with retry logic
-                    retry(3) {
-                        sh 'kubectl apply -f k8s/deployment.yaml'
-                        sh 'kubectl apply -f k8s/service.yaml'
-                    }
-                    
-                    // Verify deployment with timeout
-                    timeout(time: 5, unit: 'MINUTES') {
-                        sh 'kubectl rollout status deployment/nodeapp-deployment'
-                    }
-                    
-                    // Get service URL
-                    sh '''
-                        echo "Application URL:"
-                        minikube service nodeapp-service --url
-                    '''
-                }
-            }
+       stage('Deploy to Kubernetes') {
+    steps {
+        script {
+            // Use the existing kubeconfig in the VM
+            sh '''
+                # Verify kubectl access
+                kubectl config view
+                kubectl cluster-info
+                
+                # Apply configurations
+                kubectl apply -f k8s/deployment.yaml
+                kubectl apply -f k8s/service.yaml
+                
+                # Verify deployment
+                kubectl rollout status deployment/nodeapp-deployment
+                
+                # Get service URL
+                minikube service nodeapp-service --url || true
+            '''
         }
     }
+}  }
 
     post {
         always {
