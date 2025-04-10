@@ -1,55 +1,39 @@
-pipeline{
-  agent any
+pipeline {
+    agent any
 
-  environment {
+    environment {
         registryCredentials = "nexus"
         registry = "192.168.56.10:8083"
     }
    
-  stages {
-
-  stage('Install dependencies') {
-      steps{
-        
-        script {
-         sh('npm install')
+    stages {
+        stage('Install dependencies') {
+            steps {
+                script {
+                    sh('npm install')
+                }
+            }
         }
-      }
-    }
 
-stage('Unit Test') {
-      steps{
-        
-        script {
-         sh('npm test')
+        stage('Unit Test') {
+            steps {
+                script {
+                    sh('npm test')
+                }
+            }
         }
-      }
-    }
 
-    stage('SonarQube Analysis') {
-      steps{
-      script {  
+        stage('SonarQube Analysis') {
+            steps {
+                script {  
                     def scannerHome = tool 'scanner'
                     withSonarQubeEnv {
-                    sh "${scannerHome}/bin/sonar-scanner"
-                        }
+                        sh "${scannerHome}/bin/sonar-scanner"
+                    }
                 } 
-              }  
-            }
-
-stage('Build application') {
-      steps{
-        
-        script {
-         sh('npm run build-dev')
+            }  
         }
-      }
-    }
-
-
-
-        // Building Docker images
-    stage('Building images (node and mongo)') {
+ stage('Building images (node and mongo)') {
       steps{
         
         script {
@@ -57,10 +41,7 @@ stage('Build application') {
         }
       }
     }
-
-
-        //  Uploading Docker images into Nexus Registry
-    stage('Deploy  to Nexus') {
+stage('Deploy  to Nexus') {
      steps{  
          script {
 
@@ -70,8 +51,7 @@ stage('Build application') {
         }
       }
     }
-
-     stage('Run application ') {
+ stage('Run application ') {
      steps{  
          script {
            docker.withRegistry("http://"+registry, registryCredentials ) {
@@ -83,28 +63,8 @@ stage('Build application') {
         }
       }
     }
-  stage('Deploy to Kubernetes') {
-    environment {
-        KUBECONFIG = credentials('kubernetes-config')
-    }
-    steps {
-        script {
-            sh '''
-                mkdir -p ~/.kube
-                # Write raw content without interpretation
-                cat "$KUBECONFIG" > ~/.kube/config
-                chmod 600 ~/.kube/config
-                
-                # Verify config
-		echo "=== Current kubectl configuration ==="
-                kubectl config view --raw
-                kubectl get nodes
-            '''
-            
-            // Your deployment commands...
-            sh 'kubectl apply -f k8s/deployment.yaml'
-	    sh 'kubectl apply -f k8s/service.yaml'
-        }
-    }
-} 
-}}
+
+
+
+    } // <-- This closes the 'stages' block
+} // <-- This closes the 'pipeline' block
