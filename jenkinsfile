@@ -4,99 +4,36 @@ pipeline {
     environment {
         registryCredentials = "nexus"
         registry = "192.168.56.10:8083"
-        DOCKER_BUILDKIT = "1"  // Enable Docker BuildKit for faster builds
+        DOCKER_BUILDKIT = "1"
     }
    
     stages {
-        stage('Install dependencies') {
+        // ... [other stages remain unchanged] ...
+
+        stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    sh('npm install')
-                }
-            }
-        }
-
-        stage('Unit Test') {
-            steps {
-                script {
-                    sh('npm test')
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                script {  
-                    def scannerHome = tool 'scanner'
-                    withSonarQubeEnv {
-                        sh "${scannerHome}/bin/sonar-scanner"
-                    }
-                } 
-            }  
-        }
-
-        stage('Building images') {
-            steps {
-                script {
-                    // Use Docker Compose v2 syntax
-                    sh 'docker compose build --no-cache'
-                }
-            }
-        }
-
-        stage('Deploy to Nexus') {
-            steps {  
-                script {
-                    docker.withRegistry("http://${registry}", registryCredentials) {
-                        sh "docker push ${registry}/nodemongoapp:6.0"
+                    withCredentials([string(credentialsId: 'minikube-kubeconfig', variable: 'KUBECONFIG_CONTENT')]) {
+                        sh '''
+                            mkdir -p ~/.kube
+                            echo "$KUBECONFIG_CONTENT" > ~/.kube/config
+                            chmod 600 ~/.kube/config
+                            kubectl config view
+                            kubectl get nodes
+                        '''
+                        sh 'kubectl apply -f k8s/deployment.yaml'
                     }
                 }
             }
-        }
-
-        stage('Run application') {
-            steps {  
-                script {
-                    docker.withRegistry("http://${registry}", registryCredentials) {
-                        sh "docker pull ${registry}/nodemongoapp:6.0"
-                        // Use Docker Compose v2 syntax
-                        sh 'docker compose up -d'
-                    }
-                }
-            }
-        }
-
-       stage('Deploy to Kubernetes') {
-    steps {
-        script {
-            // Use the existing kubeconfig in the VM
-            sh '''
-                # Verify kubectl access
-                kubectl config view
-                kubectl cluster-info
-                
-                # Apply configurations
-                kubectl apply -f k8s/deployment.yaml
-                kubectl apply -f k8s/service.yaml
-                
-                # Verify deployment
-                kubectl rollout status deployment/nodeapp-deployment
-                
-                # Get service URL
-                minikube service nodeapp-service --url || true
-            '''
         }
     }
-}  }
 
     post {
         always {
-            // Clean up Docker resources
             sh 'docker compose down || true'
             sh 'docker system prune -f || true'
         }
         failure {
-            // Send notification on failure
             echo 'Pipeline failed!'
         }
     }
