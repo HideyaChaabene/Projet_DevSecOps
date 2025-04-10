@@ -1,41 +1,37 @@
+pipeline {
+    agent any
 
-pipeline{
-  agent any
-
-  environment {
+    environment {
         registryCredentials = "nexus"
         registry = "192.168.33.10:8083"
     }
    
-  stages {
-
-  stage('Install dependencies') {
-      steps{
-        
-        script {
-         sh('npm install')
+    stages {
+        stage('Install dependencies') {
+            steps {
+                script {
+                    sh('npm install')
+                }
+            }
         }
-      }
-    }
 
-stage('Unit Test') {
-      steps{
-        
-        script {
-         sh('npm test')
+        stage('Unit Test') {
+            steps {
+                script {
+                    sh('npm test')
+                }
+            }
         }
-      }
-    }
 
-    stage('SonarQube Analysis') {
-      steps{
-      script {  
+        stage('SonarQube Analysis') {
+            steps {
+                script {  
                     def scannerHome = tool 'scanner'
                     withSonarQubeEnv {
-                    sh "${scannerHome}/bin/sonar-scanner"
-                        }
+                        sh "${scannerHome}/bin/sonar-scanner"
+                    }
                 } 
-              }  
-            }
-}
-
+            }  
+        }
+    } // <-- This closes the 'stages' block
+} // <-- This closes the 'pipeline' block
