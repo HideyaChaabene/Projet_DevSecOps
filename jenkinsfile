@@ -33,5 +33,15 @@ pipeline {
                 } 
             }  
         }
+ stage('Building images (node and mongo)') {
+      steps{
+        
+        script {
+         sh('docker compose build')
+        }
+      }
+    }
+
+
     } // <-- This closes the 'stages' block
 } // <-- This closes the 'pipeline' block
