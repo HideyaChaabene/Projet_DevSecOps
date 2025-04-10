@@ -78,9 +78,33 @@ stage('Build application') {
 
             sh('docker pull $registry/nodemongoapp:6.0 ')
 
-            sh('docker-compose up -d ')
+            sh('docker compose up -d ')
           }
         }
       }
     }
+  stage('Deploy to Kubernetes') {
+    environment {
+        KUBECONFIG = credentials('kubernetes-config')
+    }
+    steps {
+        script {
+            sh '''
+                mkdir -p ~/.kube
+                # Write raw content without interpretation
+                cat "$KUBECONFIG" > ~/.kube/config
+                chmod 600 ~/.kube/config
+                
+                # Verify config
+		echo "=== Current kubectl configuration ==="
+                kubectl config view --raw
+                kubectl get nodes
+            '''
+            
+            // Your deployment commands...
+            sh 'kubectl apply -f k8s/deployment.yaml'
+	    sh 'kubectl apply -f k8s/service.yaml'
+        }
+    }
+} 
 }}
