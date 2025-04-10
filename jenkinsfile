@@ -74,7 +74,7 @@ stage('Deploy to Kubernetes') {
             // Verify deployment
             sh 'kubectl rollout status deployment/nodeapp-deployment'
             
-            // Get service URL
+            // Get service URL (for Minikube)
             sh 'minikube service nodeapp-service --url'
         }
     }
