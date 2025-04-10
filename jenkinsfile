@@ -11,22 +11,27 @@ pipeline {
         // ... [other stages remain unchanged] ...
 
         stage('Deploy to Kubernetes') {
-            steps {
-                script {
-                    withCredentials([file(credentialsId: 'kubernets-config', variable: 'KUBECONFIG_CONTENT')]) {
-                        sh '''
-                            mkdir -p ~/.kube
-                            echo "$KUBECONFIG_CONTENT" > ~/.kube/config
-                            chmod 600 ~/.kube/config
-                            kubectl config view
-                            kubectl get nodes
-                        '''
-                        sh 'kubectl apply -f k8s/deployment.yaml'
-                    }
-                }
-            }
+    environment {
+        KUBECONFIG = credentials('kubernetes-config')
+    }
+    steps {
+        script {
+            sh '''
+                mkdir -p ~/.kube
+                # Write raw content without interpretation
+                cat "$KUBECONFIG" > ~/.kube/config
+                chmod 600 ~/.kube/config
+                
+                # Verify config
+                kubectl config view --raw
+                kubectl get nodes
+            '''
+            
+            // Your deployment commands...
+            sh 'kubectl apply -f k8s/deployment.yaml'
         }
     }
+}    }
 
     post {
         always {
