@@ -64,7 +64,21 @@ stage('Deploy  to Nexus') {
       }
     }
 
-
+stage('Deploy to Kubernetes') {
+    steps {
+        script {
+            // Apply Kubernetes configurations
+            sh 'kubectl apply -f k8s/deployment.yaml'
+            sh 'kubectl apply -f k8s/service.yaml'
+            
+            // Verify deployment
+            sh 'kubectl rollout status deployment/nodeapp-deployment'
+            
+            // Get service URL
+            sh 'minikube service nodeapp-service --url'
+        }
+    }
+}
 
     } // <-- This closes the 'stages' block
 } // <-- This closes the 'pipeline' block
