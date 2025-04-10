@@ -13,7 +13,7 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    withCredentials([string(credentialsId: 'minikube-kubeconfig', variable: 'KUBECONFIG_CONTENT')]) {
+                    withCredentials([string(credentialsId: 'kubernetes-config', variable: 'KUBECONFIG_CONTENT')]) {
                         sh '''
                             mkdir -p ~/.kube
                             echo "$KUBECONFIG_CONTENT" > ~/.kube/config
