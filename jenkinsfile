@@ -15,16 +15,6 @@ pipeline {
             }
         }
 
-                stage('Building images (node and mongo)') {
-            steps {
-                script {
-                    sh 'docker compose build'
-                }
-            }
-        }
-
-
-
         stage('SonarQube Analysis') {
             steps {
                 script {
@@ -35,9 +25,6 @@ pipeline {
                 }
             }
         }
-
-
-
         stage('Deploy to Nexus') {
             steps {
                 script {
@@ -47,15 +34,19 @@ pipeline {
                 }
             }
         }
-        stage('Unit Test') {
+
+
+        stage('Building images (node and mongo)') {
             steps {
                 script {
-                    sh 'pkill -f "node.*5000" || true'
-                    sh 'cp .env.test .env' // ou .env si c’est celui utilisé
-                    sh 'npm test'
+                    sh 'docker compose build'
                 }
             }
         }
+
+
+
+
         stage('Run application') {
             steps {
                 script {
