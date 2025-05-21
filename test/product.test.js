@@ -19,6 +19,18 @@ describe('Test', () => {
 
 
 
+let token;
+
+// Avant les tests, créer un utilisateur et obtenir le token
+before((done) => {
+  chai.request(server)
+    .post('/api/auth/login')
+    .send({ email: "test@example.com", password: "123456" })
+    .end((err, res) => {
+      token = res.body.token; // ou res.body.accessToken
+      done();
+    });
+});
 
 
 it('should POST a valid product', (done) => {
@@ -30,6 +42,7 @@ it('should POST a valid product', (done) => {
     }
     chai.request(server)
     .post('/api/products')
+    .set('Authorization', `Bearer ${token}`)
     .send(product)
     .end((err, res) => {
         res.should.have.status(201);
