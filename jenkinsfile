@@ -28,7 +28,7 @@ pipeline {
         stage('Deploy to Nexus') {
             steps {
                 script {
-                    docker.withRegistry("http://${registry}", registryCredentials) {
+                    docker.withRegistry("http://${registry/repository/docker-repo/}", registryCredentials) {
                         sh "docker push ${registry}/nodemongoapp:6.0"
                     }
                 }
