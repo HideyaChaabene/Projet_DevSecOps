@@ -1,10 +1,13 @@
 pipeline {
     agent any
 
+
     environment {
         registryCredentials = "nexus"
         registry = "192.168.33.10:8083"
-    }
+        imageName = "nodemongoapp"
+        imageTag = "6.0"
+        }
 
     stages {
         stage('Install dependencies') {
@@ -24,26 +27,28 @@ pipeline {
                     }
                 }
             }
+        stage('Building images') {
+            steps {
+                script {
+                    // Build and tag the Docker image
+                    sh "docker build -t ${registry}/${imageName}:${imageTag} ."
+                    
+                    // If using docker-compose, use this instead:
+                    // sh "docker-compose build"
+                    // sh "docker tag ${imageName} ${registry}/${imageName}:${imageTag}"
+                }
+            }
         }
+
         stage('Deploy to Nexus') {
             steps {
                 script {
-                    docker.withRegistry("http://${registry}/repository/docker-repo/", registryCredentials) {
-                        sh "docker push ${registry}/nodemongoapp:6.0"
+                    docker.withRegistry("http://${registry}", registryCredentials) {
+                        sh "docker push ${registry}/${imageName}:${imageTag}"
                     }
                 }
             }
         }
-
-
-        stage('Building images (node and mongo)') {
-            steps {
-                script {
-                    sh 'docker compose build -t 192.168.33.10:8083/nodemongoapp:6.0 .'
-                }
-            }
-        }
-
 
 
 
