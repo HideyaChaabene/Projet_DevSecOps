@@ -6,6 +6,10 @@ pipeline {
         registry = "192.168.33.10:8083"
         imageName = "nodemongoapp"
         imageTag = "6.0"
+        DOCKER_IMAGE = "${registry}/repository/docker-repo/${imageName}:${imageTag}"
+        K8S_DEPLOYMENT_NAME = "nodemongoapp-deployment"
+        K8S_SERVICE_NAME = "nodemongoapp-service"
+        CONTAINER_PORT = "3000" // Update with your app's port
     }
 
     stages {
@@ -31,12 +35,7 @@ pipeline {
         stage('Building images') {
             steps {
                 script {
-                    // Build and tag the Docker image
-                    sh "docker build -t ${registry}/${imageName}:${imageTag} ."
-                    
-                    // If using docker-compose, use this instead:
-                    // sh "docker-compose build"
-                    // sh "docker tag ${imageName} ${registry}/${imageName}:${imageTag}"
+                    sh "docker build -t ${DOCKER_IMAGE} ."
                 }
             }
         }
@@ -45,20 +44,96 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry("http://${registry}", registryCredentials) {
-                        sh "docker push ${registry}/${imageName}:${imageTag}"
+                        sh "docker push ${DOCKER_IMAGE}"
                     }
                 }
             }
         }
 
-        stage('Run application') {
+        stage('Generate Kubernetes Manifests') {
             steps {
                 script {
-                    // If using docker-compose
-                    sh 'docker-compose up -d'
-                    
-                    // If using plain docker
-                    // sh "docker run -d ${registry}/${imageName}:${imageTag}"
+                    // Create deployment.yaml
+                    writeFile file: 'deployment.yaml', text: """
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${K8S_DEPLOYMENT_NAME}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ${imageName}
+  template:
+    metadata:
+      labels:
+        app: ${imageName}
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: ${imageName}
+        image: ${DOCKER_IMAGE}
+        ports:
+        - containerPort: ${CONTAINER_PORT}
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+"""
+                    // Create service.yaml
+                    writeFile file: 'service.yaml', text: """
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${K8S_SERVICE_NAME}
+spec:
+  type: NodePort
+  selector:
+    app: ${imageName}
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: ${CONTAINER_PORT}
+"""
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    withCredentials([
+                        file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE'),
+                        usernamePassword(
+                            credentialsId: 'nexus',
+                            usernameVariable: 'NEXUS_USER',
+                            passwordVariable: 'NEXUS_PASS'
+                        )            
+                    ]) {
+                        sh '''
+                            mkdir -p ${WORKSPACE}/.kube
+                            cp "${KUBECONFIG_FILE}" ${WORKSPACE}/.kube/config
+                            chmod 600 ${WORKSPACE}/.kube/config
+                            export KUBECONFIG=${WORKSPACE}/.kube/config
+                            
+                            # Create Docker registry secret for Nexus
+                            kubectl create secret docker-registry regcred \
+                                --docker-server=${registry} \
+                                --docker-username=${NEXUS_USER} \
+                                --docker-password=${NEXUS_PASS} \
+                                --docker-email=${NEXUS_USER}@users.noreply.nexus.com \
+                                --dry-run=client -o yaml | kubectl apply -f -
+
+                            kubectl apply -f deployment.yaml
+                            kubectl apply -f service.yaml
+                            
+                            # Verify deployment
+                            kubectl rollout status deployment/${K8S_DEPLOYMENT_NAME} --timeout=5m || true
+                            kubectl get pods -o wide
+                            kubectl describe deployment ${K8S_DEPLOYMENT_NAME}
+                        '''
+                    }
                 }
             }
         }
